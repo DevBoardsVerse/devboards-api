@@ -6,6 +6,12 @@ import redisConfig from './config/redis.config';
 import jwtConfig from './config/jwt.config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './modules/health/health.module';
+import { UsersModule } from './modules/users/user.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { RedisModule } from './modules/redis/redis.module';
+import { RolesGuard } from './common/guards/roles.guard';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -16,6 +22,22 @@ import { HealthModule } from './modules/health/health.module';
     }),
     DatabaseModule,
     HealthModule,
+    UsersModule,
+    AuthModule,
+    RedisModule,
+  ],
+
+  providers: [
+    // APP_GUARD applies guards to every route in the app
+    // Guards run in the order they are listed
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,   // runs first — are you logged in?
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,     // runs second — do you have the right role?
+    },
   ],
 })
 export class AppModule {}

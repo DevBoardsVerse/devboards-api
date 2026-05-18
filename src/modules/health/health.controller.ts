@@ -11,8 +11,9 @@ import {
   ApiServiceUnavailableResponse,
 } from '@nestjs/swagger';
 import { RedisHealthIndicator } from './redis.health';
+import { Public } from 'src/common/decorators/roles.decorator';
 
-
+@Public()
 @ApiTags('health')   // groups this under the 'health' section in Swagger UI
 @Controller('health')
 export class HealthController {
