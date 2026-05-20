@@ -12,6 +12,10 @@ import { RedisModule } from './modules/redis/redis.module';
 import { RolesGuard } from './common/guards/roles.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProjectsModule } from './modules/projects/project.module';
+import { TasksModule } from './modules/tasks/task.module';
+import { ActivityModule } from './modules/activity/activity.module';
 
 @Module({
   imports: [
@@ -25,6 +29,10 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
     UsersModule,
     AuthModule,
     RedisModule,
+    OrganizationsModule,
+    ProjectsModule,
+    TasksModule,
+    ActivityModule,
   ],
 
   providers: [
