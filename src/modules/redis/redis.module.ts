@@ -12,7 +12,7 @@ import { RedisService } from './redis.service';
       useFactory: (config: ConfigService): Redis => {
         const isProduction = config.get<string>('NODE_ENV') === 'production';
         
-        return new Redis({
+        const client = new Redis({
           host: config.get<string>('redis.host'),
           port: config.get<number>('redis.port'),
           password: config.get<string>('redis.password') || undefined,
@@ -23,6 +23,17 @@ import { RedisService } from './redis.service';
           },
           maxRetriesPerRequest: 1,
         });
+
+        // Prevent unhandled error crashes — just log cleanly
+        client.on('error', (err) => {
+          console.error('[Redis] Connection error:', err.message);
+        });
+
+        client.on('connect', () => {
+          console.log('[Redis] Connected successfully');
+        });
+
+        return client;
       },
     },
     RedisService,

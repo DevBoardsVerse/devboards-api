@@ -30,27 +30,26 @@ export class HealthController {
   @HealthCheck()
   @ApiOperation({
     summary: 'Check app health',
-    description: 'Returns status of app and database connection and redis',
+    description: 'Returns status of app and database connection. Redis checked separately.',
   })
   @ApiOkResponse({
-    description: 'all services are healthy',
+    description: 'critical services are healthy',
     schema: {
       example: {
         status: 'ok',
         info: { 
           database: { status: 'up' },
-          redis: { status: 'up' },
         },
       },
     },
   })
   @ApiServiceUnavailableResponse({
-    description: 'one or more service is unreachable',
+    description: 'database is unreachable',
   })
   check() {
     return this.health.check([
       () => this.db.pingCheck('database'),
-      () => this.redis.isHealthy('redis'),
+      // Redis checked separately — don't block health on it
     ]);
   }
 }
