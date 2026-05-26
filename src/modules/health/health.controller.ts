@@ -11,8 +11,10 @@ import {
   ApiServiceUnavailableResponse,
 } from '@nestjs/swagger';
 import { RedisHealthIndicator } from './redis.health';
-import { Public } from 'src/common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/roles.decorator';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()   // add at class level — skips all throttling for this controller
 @Public()
 @ApiTags('health')   // groups this under the 'health' section in Swagger UI
 @Controller('health')

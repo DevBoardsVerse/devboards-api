@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 
 @Catch(HttpException)
@@ -17,12 +18,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    // Friendlier message for rate limit errors
+    const isThrottled = exception instanceof ThrottlerException;
+
     const exceptionResponse = exception.getResponse();
-    const message =
-      typeof exceptionResponse === 'object' &&
-      'message' in (exceptionResponse as object)
-        ? (exceptionResponse as any).message
+    const message = isThrottled
+      ? 'Too many requests — please slow down and try again shortly'
+      : typeof exceptionResponse === 'object' &&
+          'message' in (exceptionResponse as object)
+        ? (exceptionResponse as Record<string, unknown>)['message']
         : exception.message;
+
 
     response.status(status).json({
       statusCode: status,

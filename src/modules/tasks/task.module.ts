@@ -6,6 +6,9 @@ import { TasksController } from './tasks.controller';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { ProjectsModule } from '../projects/project.module';
 import { ActivityModule } from '../activity/activity.module';
+import { QueueModule } from '../queue/queue.module';
+import { UsersModule } from '../users/user.module';
+import { GatewayModule } from '../gateway/gateway.module';
 
 @Module({
   imports: [
@@ -13,6 +16,9 @@ import { ActivityModule } from '../activity/activity.module';
     OrganizationsModule,  // for permission checks
     ProjectsModule,       // for verifyProjectBelongsToOrg
     ActivityModule,
+    QueueModule,          // These two are added for bullmq
+    UsersModule,
+    GatewayModule,
   ],
   providers: [TasksService],
   controllers: [TasksController],

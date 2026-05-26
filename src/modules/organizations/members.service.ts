@@ -19,6 +19,10 @@ import { UsersService } from '../users/user.service';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityAction } from '../activity/entities/activity-log.entity';
 import { Organization } from './entities/organization.entity';
+import { CacheService } from '../../cache/cache.service';
+import { NotificationProducer } from '../queue/producers/notification.producer';
+
+import { EventsService } from '../gateway/events.service';
 
 @Injectable()
 export class MembersService {
@@ -28,6 +32,9 @@ export class MembersService {
     private orgsService: OrganizationsService,
     private usersService: UsersService,
     private activityService: ActivityService,  // added this for logging
+    private cacheService: CacheService, //added for caching
+    private notificationProducer: NotificationProducer, //For producing email (bullmq)
+    private eventsService: EventsService, // For websocket
   ) {}
 
   // ─── List members ─────────────────────────────────────────────
@@ -35,12 +42,20 @@ export class MembersService {
   async listMembers(orgId: string, requesterId: string) {
     // Any member can see the list — just verify membership
     await this.orgsService.verifyMembership(orgId, requesterId);
+    //For caching
+    const cacheKey = this.cacheService.keys.orgMembers(orgId);
+    const cached = await this.cacheService.get<OrganizationMember[]>(cacheKey);
+    if (cached) return cached;
 
-    return this.memberRepository.find({
+    //returns members
+    const members = await this.memberRepository.find({
       where: { organizationId: orgId },
       relations: ['user'],
       order: { joinedAt: 'ASC' },
     });
+
+    await this.cacheService.set(cacheKey, members, 60);
+    return members;
   }
 
   // ─── Invite ───────────────────────────────────────────────────
@@ -104,6 +119,32 @@ export class MembersService {
       organizationId: orgId,
       actorId: requesterId,
       metadata: { userId: targetUser.id, role: savedMembership.role },
+    });
+
+    // for web socket
+    this.eventsService.emitToOrg(orgId, 'member.invited', {
+      userId: targetUser.id,
+      role: savedMembership.role,
+    });
+
+    await this.cacheService.delete(this.cacheService.keys.orgMembers(orgId));
+
+    // Get org details for the email
+    const org = await this.orgsService.findOrgById(orgId);
+
+    // Get inviter details
+    const inviter = await this.usersService.findById(requesterId);
+    if (!inviter) {
+      throw new NotFoundException('Inviter user not found');
+    }
+
+    // Queue email — non-blocking, runs in background
+    await this.notificationProducer.sendInviteEmail({
+      recipientEmail: targetUser.email,
+      recipientName: `${targetUser.firstName} ${targetUser.lastName}`,
+      organizationName: org.name,
+      inviterName: `${inviter.firstName} ${inviter.lastName}`,
+      role: savedMembership.role,
     });
 
     return savedMembership;
@@ -171,6 +212,7 @@ export class MembersService {
       actorId: requesterId,
       metadata: { userId: targetUserId, from: oldRole, to: dto.role },
     });
+    await this.cacheService.delete(this.cacheService.keys.orgMembers(orgId));
 
     return updatedMembership;
   }
@@ -233,5 +275,6 @@ export class MembersService {
       actorId: requesterId,
       metadata: { userId: targetUserId, role: targetMembership.role },
     });
+    await this.cacheService.delete(this.cacheService.keys.orgMembers(orgId));
   }
 }

@@ -57,6 +57,21 @@ services:
     depends_on:
       - app
 
+  minio:
+    image: minio/minio
+    container_name: devboard_minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: devboard
+      MINIO_ROOT_PASSWORD: devboard_secret
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+
 volumes:
   postgres_data:
   redis_data:
+  minio_data:

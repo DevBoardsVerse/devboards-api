@@ -81,6 +81,12 @@ export class OrganizationsService {
     return org;
   }
 
+  async findOrgById(orgId: string): Promise<Organization> {
+    const org = await this.orgRepository.findOne({ where: { id: orgId } });
+    if (!org) throw new NotFoundException('Organization not found');
+    return org;
+  }
+
   // ─── Update ──────────────────────────────────────────────────
 
   async update(

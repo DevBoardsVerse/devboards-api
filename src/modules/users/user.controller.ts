@@ -12,8 +12,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from './user.service';
 import { User } from './entities/user.entity';
 
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserRole } from './entities/user.entity';
 
 @ApiTags('users')

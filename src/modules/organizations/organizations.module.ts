@@ -10,12 +10,14 @@ import { MembersController } from './members.controller';
 import { UsersModule } from '../users/user.module';
 
 import { ActivityModule } from '../activity/activity.module';
+import { GatewayModule } from '../gateway/gateway.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Organization, OrganizationMember]),
     UsersModule,
     forwardRef(() => ActivityModule),
+    forwardRef(() => GatewayModule),
   ],
   providers: [OrganizationsService, MembersService],
   controllers: [OrganizationsController, MembersController],

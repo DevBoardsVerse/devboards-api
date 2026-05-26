@@ -16,10 +16,12 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { UseGuards } from '@nestjs/common';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiForbiddenResponse } from '@nestjs/swagger';
 
-import { Public } from 'src/common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/roles.decorator';
+
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -28,6 +30,8 @@ export class AuthController {
   
   @Public()
   @Post('register')
+  @Throttle({ auth: { ttl: 60000, limit: 5 } })
+  // 5 registration attempts per minute per IP  
   @ApiOperation({ summary: 'Register a new user' })
   @ApiCreatedResponse({
     description: 'User registered successfully',
@@ -42,6 +46,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)   // POST defaults to 201, login should return 200
+  @Throttle({ auth: { ttl: 60000, limit: 10 } })
+  // 10 login attempts per minute per IP
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiOkResponse({
     description: 'Login successful',

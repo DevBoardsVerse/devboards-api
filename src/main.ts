@@ -4,10 +4,24 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import helmet from 'helmet';
+import * as express from 'express';
 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security headers — add before any other middleware
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // cross-origin needed so MinIO/R2 file URLs work in browser
+      // without this, browser blocks loading files from different origin
+    }),
+  );
+
+  app.use(express.json({ limit: '5mb' }));
+  app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
   // Global validation — rejects requests with invalid/missing fields
   app.useGlobalPipes(
@@ -26,8 +40,27 @@ async function bootstrap() {
 
   // CORS — allow frontend to call this API
   app.enableCors({
-    origin: '*',   // tighten this in production
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, curl)
+      if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        'http://localhost:3001',   // Next.js dev server
+        'http://localhost:3000',
+        'http://localhost:80',
+        'http://localhost',
+        process.env.FRONTEND_URL,  // production frontend
+      ].filter(Boolean);           // remove undefined values
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
    // ─── Swagger ────────────────────────────────────────────────

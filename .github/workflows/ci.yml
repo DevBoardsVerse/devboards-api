@@ -1,0 +1,69 @@
+name: CI
+
+# Run on every push to main and on every pull request
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'   # caches node_modules between runs — faster
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        # npm ci is like npm install but:
+        # - uses package-lock.json exactly (reproducible)
+        # - faster in CI environments
+        # - fails if lock file is out of sync
+
+      # 4. Type check — catches TypeScript errors
+      - name: Type check
+        run: npx tsc --noEmit
+        # --noEmit = check types but don't output files
+        # fails if any TypeScript error exists in the codebase
+
+      # 5. Build — catches compilation errors
+      - name: Build
+        run: npm run build
+        env:
+          # Provide dummy env vars so config validation passes
+          # Real values are never in CI — only secrets
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: test
+          DB_PASS: test
+          DB_NAME: test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: this_is_a_test_secret_that_is_long_enough_32chars
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_SECRET: another_test_refresh_secret_long_enough_here
+          JWT_REFRESH_EXPIRES_IN: 7d
+          MAIL_HOST: localhost
+          MAIL_PORT: 2525
+          MAIL_USER: test
+          MAIL_PASS: test
+          MAIL_FROM: test@test.com
+          R2_ACCOUNT_ID: test
+          R2_ACCESS_KEY_ID: test
+          R2_SECRET_ACCESS_KEY: test
+          R2_BUCKET_NAME: test
+          R2_PUBLIC_URL: http://localhost:9000/test
+          FRONTEND_URL: http://localhost:3001

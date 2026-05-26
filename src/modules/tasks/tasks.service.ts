@@ -16,6 +16,9 @@ import { ProjectsService } from '../projects/project.service';
 import { OrgRole } from '../organizations/entities/organization-member.entity';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityAction } from '../activity/entities/activity-log.entity';
+import { NotificationProducer } from '../queue/producers/notification.producer';
+import { UsersService } from '../users/user.service';
+import { EventsService } from '../gateway/events.service';
 
 @Injectable()
 export class TasksService {
@@ -25,6 +28,10 @@ export class TasksService {
     private orgsService: OrganizationsService,
     private projectsService: ProjectsService,
     private activityService: ActivityService,  // added this for logging activity
+    private notificationProducer: NotificationProducer,
+    private usersService: UsersService,
+    private eventsService: EventsService, //For websocket 
+
   ) {}
 
   // ─── Create ──────────────────────────────────────────────────
@@ -69,6 +76,8 @@ export class TasksService {
       actorId: userId,
       metadata: { title: savedTask.title, priority: savedTask.priority },
     });
+
+    this.eventsService.emitToOrg(orgId, 'task.created', savedTask);
 
     return savedTask;  // return after log
   }
@@ -219,6 +228,27 @@ export class TasksService {
       });
     }
 
+    // Only send email if actually assigning (not unassigning)
+    if (dto.assigneeId) {
+      const assignee = await this.usersService.findById(dto.assigneeId);
+      const assigner = await this.usersService.findById(userId);
+      const project = await this.projectsService.findProjectById(projectId);
+      const org = await this.orgsService.findOrgById(orgId);
+
+      if (assignee && assigner && project && org) {
+        await this.notificationProducer.sendTaskAssignedEmail({
+          recipientEmail: assignee.email,
+          recipientName: `${assignee.firstName} ${assignee.lastName}`,
+          taskTitle: task.title,
+          projectName: project.name,
+          organizationName: org.name,
+          assignerName: `${assigner.firstName} ${assigner.lastName}`,
+        });
+      }
+    }
+
+    this.eventsService.emitToOrg(orgId, 'task.updated', updatedTask); // For Websocket
+
     return updatedTask;  // return after log
   }
 
@@ -257,6 +287,29 @@ export class TasksService {
     metadata: { assigneeId: dto.assigneeId },
   });
 
+  if (dto.assigneeId) {
+  const assignee = await this.usersService.findById(dto.assigneeId);
+  const assigner = await this.usersService.findById(requesterId);
+  const project = await this.projectsService.findProjectById(projectId);
+  const org = await this.orgsService.findOrgById(orgId);
+
+  if (assignee && assigner && project && org) {
+    await this.notificationProducer.sendTaskAssignedEmail({
+      recipientEmail: assignee.email,
+      recipientName: `${assignee.firstName} ${assignee.lastName}`,
+      taskTitle: task.title,
+      projectName: project.name,
+      organizationName: org.name,
+      assignerName: `${assigner.firstName} ${assigner.lastName}`,
+    });
+  }
+}
+
+this.eventsService.emitToOrg(orgId, 'task.assigned', { // For websocket
+  taskId: task.id,
+  assigneeId: dto.assigneeId,
+}); 
+
   // Fetch and return the updated task
   return this.findOne(orgId, projectId, taskId, requesterId);
 }
@@ -294,6 +347,8 @@ export class TasksService {
       actorId: userId,
       metadata: { title: task.title },
     });
+
+    this.eventsService.emitToOrg(orgId, 'task.deleted', { taskId: task.id }); // for websockt
   }
 
   // ─── Private helpers ─────────────────────────────────────────

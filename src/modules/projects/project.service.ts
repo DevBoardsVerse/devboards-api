@@ -90,6 +90,10 @@ export class ProjectsService {
     return project;
   }
 
+  async findProjectById(projectId: string): Promise<Project | null> {
+    return this.projectRepository.findOne({ where: { id: projectId } });
+  }
+
   // ─── Update ──────────────────────────────────────────────────
 
   async update(

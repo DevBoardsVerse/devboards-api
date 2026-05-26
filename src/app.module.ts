@@ -16,14 +16,25 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { ProjectsModule } from './modules/projects/project.module';
 import { TasksModule } from './modules/tasks/task.module';
 import { ActivityModule } from './modules/activity/activity.module';
+import { AppCacheModule } from './cache/cache.module';
+import { MailModule } from './modules/mail/mail.module';
+import { QueueModule } from './modules/queue/queue.module';
+import storageConfig from './modules/storage/storage.config';
+//import { StorageModule } from './modules/storage/storage.module';
+//import { AttachmentsModule } from './modules/attachments/attachments.module';
+
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { GatewayModule } from './modules/gateway/gateway.module';
+
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema,
-      load: [databaseConfig, redisConfig, jwtConfig], // registers typed configs
+      load: [databaseConfig, redisConfig, jwtConfig, storageConfig], // registers typed configs
     }),
+    AppCacheModule,
     DatabaseModule,
     HealthModule,
     UsersModule,
@@ -33,6 +44,23 @@ import { ActivityModule } from './modules/activity/activity.module';
     ProjectsModule,
     TasksModule,
     ActivityModule,
+    MailModule,
+    QueueModule,
+    //StorageModule,
+    //AttachmentsModule,
+    GatewayModule,
+     ThrottlerModule.forRoot([
+      {
+        name: 'global',
+        ttl: 60000,   // 60 second window (milliseconds)
+        limit: 100,   // max 100 requests per IP per window
+      },
+      {
+        name: 'auth',
+        ttl: 60000,   // 60 second window
+        limit: 10,    // stricter limit for auth endpoints
+      },
+    ]),
   ],
 
   providers: [
@@ -45,6 +73,10 @@ import { ActivityModule } from './modules/activity/activity.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,     // runs second — do you have the right role?
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,  // add — runs after auth guards
     },
   ],
 })

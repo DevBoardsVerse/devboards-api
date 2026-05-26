@@ -15,6 +15,10 @@ import { RedisService } from './redis.service';
         return new Redis({
           host: config.get<string>('redis.host'),
           port: config.get<number>('redis.port'),
+          password: config.get<string>('redis.password') || undefined,
+          tls: config.get<string>('redis.host')?.includes('upstash.io')
+            ? {}
+            : undefined,
         });
       },
     },
