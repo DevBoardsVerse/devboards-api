@@ -41,18 +41,18 @@ async function bootstrap() {
   // CORS — allow frontend to call this API
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, curl)
-      if (!origin) return callback(null, true);
-
       const allowedOrigins = [
         'http://localhost:3001',   // Next.js dev server
         'http://localhost:3000',
         'http://localhost:80',
         'http://localhost',
         process.env.FRONTEND_URL,  // production frontend
+        process.env.RENDER_URL,    // Render-deployed backend URL
+        'https://devboards-api.onrender.com',  // hardcoded Render URL
       ].filter(Boolean);           // remove undefined values
 
-      if (allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (Swagger, mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin ${origin} not allowed`));

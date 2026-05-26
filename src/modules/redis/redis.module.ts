@@ -16,9 +16,11 @@ import { RedisService } from './redis.service';
           host: config.get<string>('redis.host'),
           port: config.get<number>('redis.port'),
           password: config.get<string>('redis.password') || undefined,
-          tls: config.get<string>('redis.host')?.includes('upstash.io')
-            ? {}
-            : undefined,
+          tls: {},  // always set tls object for Upstash
+          retryStrategy: (times) => {
+            if (times > 3) return null;
+            return Math.min(times * 200, 1000);
+          },
         });
       },
     },
