@@ -9,4 +9,5 @@ export default registerAs('database', () => ({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   synchronize: process.env.NODE_ENV !== 'production',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 }));
