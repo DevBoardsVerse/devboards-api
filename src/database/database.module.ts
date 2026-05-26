@@ -16,6 +16,7 @@ import { ConfigService } from '@nestjs/config';
         username: config.get<string>('database.username'),
         password: config.get<string>('database.password'),
         database: config.get<string>('database.database'),
+        ssl: config.get('database.ssl'),
 
         // TypeORM will scan for any file ending in .entity.ts
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
