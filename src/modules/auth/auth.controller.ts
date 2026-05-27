@@ -1,99 +1,117 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiBadRequestResponse,
-  ApiUnauthorizedResponse,
-  ApiConflictResponse,
+  Controller, Post, Body, HttpCode, HttpStatus,
+  UseGuards, Req, Res, UnauthorizedException,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import {
+  ApiTags, ApiOperation, ApiCreatedResponse, ApiOkResponse,
+  ApiBadRequestResponse, ApiUnauthorizedResponse, ApiConflictResponse,
+  ApiBearerAuth, ApiForbiddenResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
-
-import { UseGuards } from '@nestjs/common';
-import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiForbiddenResponse } from '@nestjs/swagger';
-
 import { Public } from '../../common/decorators/roles.decorator';
 
-import { Throttle } from '@nestjs/throttler';
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'none' as const,
+  secure: true,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
-  
+  constructor(
+    private authService: AuthService,
+    private jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
+
   @Public()
   @Post('register')
   @Throttle({ auth: { ttl: 60000, limit: 5 } })
-  // 5 registration attempts per minute per IP  
   @ApiOperation({ summary: 'Register a new user' })
-  @ApiCreatedResponse({
-    description: 'User registered successfully',
-    type: AuthResponseDto,
-  })
+  @ApiCreatedResponse({ type: AuthResponseDto })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiConflictResponse({ description: 'Email already registered' })
-  async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { user, tokens } = await this.authService.register(dto);
+    res.cookie('refresh_token', tokens.refreshToken, COOKIE_OPTIONS);
+    return { accessToken: tokens.accessToken, user };
   }
 
   @Public()
   @Post('login')
-  @HttpCode(HttpStatus.OK)   // POST defaults to 201, login should return 200
+  @HttpCode(HttpStatus.OK)
   @Throttle({ auth: { ttl: 60000, limit: 10 } })
-  // 10 login attempts per minute per IP
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiOkResponse({
-    description: 'Login successful',
-    type: AuthResponseDto,
-  })
+  @ApiOkResponse({ type: AuthResponseDto })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { user, tokens } = await this.authService.login(dto);
+    res.cookie('refresh_token', tokens.refreshToken, COOKIE_OPTIONS);
+    return { accessToken: tokens.accessToken, user };
   }
 
-@Public()                           // uses RefreshTokenGuard directly, not JwtAuthGuard
-@Post('refresh')
-@HttpCode(HttpStatus.OK)
-@UseGuards(RefreshTokenGuard)       // uses jwt-refresh strategy
-@ApiBearerAuth('access-token')      // Swagger lock icon
-@ApiOperation({
-  summary: 'Refresh access token',
-  description:
-    'Send your refresh token as Bearer token to get a new token pair. Old refresh token is immediately invalidated.',
-})
-@ApiOkResponse({
-  description: 'New token pair issued',
-  type: AuthResponseDto,
-})
-@ApiForbiddenResponse({
-  description: 'Invalid, expired, or already-used refresh token',
-})
-async refresh(@CurrentUser() user: any) {
-  // user here has shape: { sub, email, role, refreshToken }
-  // set by RefreshTokenStrategy.validate()
-  return this.authService.refreshTokens(user.sub, user.refreshToken);
-}
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using httpOnly cookie' })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiForbiddenResponse({ description: 'Invalid or expired refresh token' })
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.refresh_token;
+    if (!refreshToken) {
+      throw new UnauthorizedException('No refresh token cookie found');
+    }
 
-@Post('logout')
-@HttpCode(HttpStatus.OK)
-@UseGuards(JwtAuthGuard)            // must be logged in to logout
-@ApiBearerAuth('access-token')
-@ApiOperation({
-  summary: 'Logout current user',
-  description: 'Invalidates the refresh token. Access token expires naturally.',
-})
-@ApiOkResponse({ description: 'Logged out successfully' })
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-async logout(@CurrentUser() user: any) {
-  await this.authService.logout(user.id);
-  return { message: 'Logged out successfully' };
-}
+    // Decode to get userId — no need for RefreshTokenGuard anymore
+    const payload = this.jwtService.decode(refreshToken) as { sub: string } | null;
+    if (!payload?.sub) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const { user, tokens } = await this.authService.refreshTokens(
+      payload.sub,
+      refreshToken,
+    );
+
+    // Rotate cookie
+    res.cookie('refresh_token', tokens.refreshToken, COOKIE_OPTIONS);
+    return { accessToken: tokens.accessToken, user };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Logout and clear refresh token cookie' })
+  @ApiOkResponse({ description: 'Logged out successfully' })
+  async logout(
+    @CurrentUser() user: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(user.id);
+    res.clearCookie('refresh_token', COOKIE_OPTIONS);
+    return { message: 'Logged out successfully' };
+  }
 }
