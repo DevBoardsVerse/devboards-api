@@ -27,11 +27,9 @@ export const validationSchema = Joi.object({
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
 
   // Mail
-  MAIL_HOST: Joi.string().required(),
-  MAIL_PORT: Joi.number().default(2525),
-  MAIL_USER: Joi.string().required(),
-  MAIL_PASS: Joi.string().required(),
-  MAIL_FROM: Joi.string().default('noreply@devboard.com'),
+  // Mail
+  BREVO_API_KEY: Joi.string().required(),
+  MAIL_FROM: Joi.string().required(),
 
   // File Upload
   R2_ACCOUNT_ID: Joi.string().optional().default('disabled'),
