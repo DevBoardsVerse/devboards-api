@@ -12,18 +12,22 @@ import { MailModule } from '../mail/mail.module';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.getOrThrow<string>('redis.host'),
-          port: config.getOrThrow<number>('redis.port'),
+      connection: {
+        host: config.getOrThrow<string>('redis.host'),
+        port: config.getOrThrow<number>('redis.port'),
+        password: config.get<string>('redis.password') || undefined,
+        tls: config.get<string>('NODE_ENV') === 'production'
+          ? { rejectUnauthorized: false }
+          : undefined,
+      },
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
         },
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-        },
-      }),
+      },
+    }),
     }),
     // Register specific queues
     BullModule.registerQueue({
