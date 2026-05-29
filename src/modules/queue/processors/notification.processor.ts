@@ -41,9 +41,14 @@ export class NotificationProcessor extends WorkerHost {
   }
 
   private async handleInviteEmail(data: InviteEmailJobPayload): Promise<void> {
+  try {
     await this.mailService.sendInviteEmail(data);
     this.logger.log(`Invite email processed for ${data.recipientEmail}`);
+  } catch (err) {
+    this.logger.error(`Failed to send invite email to ${data.recipientEmail}`, err);
+    throw err; // rethrow so BullMQ marks job as failed
   }
+}
 
   private async handleTaskAssignedEmail(
     data: TaskAssignedEmailJobPayload,
