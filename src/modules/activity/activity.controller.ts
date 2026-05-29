@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUIDPipe, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -25,8 +25,8 @@ export class ActivityController {
   async getOrgActivity(
     @CurrentUser() user: User,
     @Param('orgId', ParseUUIDPipe) orgId: string,
-    @Query('limit') limit?: number,
-    @Query('page') page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('category') category?: string,
   ) {
     return this.activityService.getOrgActivity(orgId, user.id, limit, page, category);
