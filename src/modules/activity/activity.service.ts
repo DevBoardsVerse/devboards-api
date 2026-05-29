@@ -57,30 +57,42 @@ export class ActivityService {
   async getOrgActivity(
     orgId: string,
     requesterId: string,
-    limit = 50,
-  ): Promise<ActivityLog[]> {
+    limit = 20,
+    page = 1,
+  ): Promise<{ logs: ActivityLog[]; total: number; page: number; limit: number }> {
     await this.orgsService.verifyMembership(orgId, requesterId);
 
-    const cacheKey = this.cacheService.keys.orgActivity(orgId);
-
-    // Try cache first
-    const cached = await this.cacheService.get<ActivityLog[]>(cacheKey);
-    if (cached) {
-      return cached;  // cache hit — return immediately, no DB query
+    // Don't cache paginated results — cache only makes sense for page 1
+    if (page === 1) {
+      const cacheKey = this.cacheService.keys.orgActivity(orgId);
+      const cached = await this.cacheService.get<{
+        logs: ActivityLog[];
+        total: number;
+        page: number;
+        limit: number;
+      }>(cacheKey);
+      if (cached) return cached;
     }
 
-    // Cache miss — query DB
-    const logs = await this.activityRepository.find({
+    const [logs, total] = await this.activityRepository.findAndCount({
       where: { organizationId: orgId },
       relations: ['actor'],
       order: { createdAt: 'DESC' },
       take: limit,
+      skip: (page - 1) * limit,
     });
 
-    // Store in cache for 60 seconds
-    await this.cacheService.set(cacheKey, logs, 60);
+    const result = { logs, total, page, limit };
 
-    return logs;
+    if (page === 1) {
+      await this.cacheService.set(
+        this.cacheService.keys.orgActivity(orgId),
+        result,
+        60,
+      );
+    }
+
+    return result;
   }
 
   async getEntityActivity(

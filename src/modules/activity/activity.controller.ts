@@ -19,13 +19,15 @@ export class ActivityController {
   @Get()
   @ApiOperation({ summary: 'Get recent activity for an organization' })
   @ApiOkResponse({ description: 'Activity feed returned' })
-  @ApiQuery({ name: 'limit', required: false, example: 50 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
   async getOrgActivity(
     @CurrentUser() user: User,
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Query('limit') limit?: number,
+    @Query('page') page?: number,
   ) {
-    return this.activityService.getOrgActivity(orgId, user.id, limit);
+    return this.activityService.getOrgActivity(orgId, user.id, limit, page);
   }
 
   @Get(':entityType/:entityId')
