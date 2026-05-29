@@ -5,6 +5,7 @@ import { ActivityLog, ActivityAction } from './entities/activity-log.entity';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CacheService } from '../../cache/cache.service';
 import { EventsService } from '../gateway/events.service';
+import { In } from 'typeorm';
 
 
 export interface LogActivityParams {
@@ -15,6 +16,24 @@ export interface LogActivityParams {
   actorId: string;
   metadata?: Record<string, any>;
 }
+
+const CATEGORY_ACTIONS: Record<string, ActivityAction[]> = {
+  tasks: [
+    ActivityAction.TASK_CREATED,
+    ActivityAction.TASK_UPDATED,
+    ActivityAction.TASK_STATUS_CHANGED,
+    ActivityAction.TASK_ASSIGNED,
+    ActivityAction.TASK_DELETED,
+  ],
+  members: [
+    ActivityAction.MEMBER_INVITED,
+    ActivityAction.MEMBER_ROLE_CHANGED,
+    ActivityAction.MEMBER_REMOVED,
+  ],
+  projects: [
+    ActivityAction.PROJECT_CREATED,
+  ],
+};
 
 @Injectable()
 export class ActivityService {
@@ -59,11 +78,12 @@ export class ActivityService {
     requesterId: string,
     limit = 20,
     page = 1,
+    category?: string,
   ): Promise<{ logs: ActivityLog[]; total: number; page: number; limit: number }> {
     await this.orgsService.verifyMembership(orgId, requesterId);
 
-    // Don't cache paginated results — cache only makes sense for page 1
-    if (page === 1) {
+    // Only cache unfiltered page 1
+    if (page === 1 && !category) {
       const cacheKey = this.cacheService.keys.orgActivity(orgId);
       const cached = await this.cacheService.get<{
         logs: ActivityLog[];
@@ -74,8 +94,13 @@ export class ActivityService {
       if (cached) return cached;
     }
 
+    const actions = category ? CATEGORY_ACTIONS[category] : undefined;
+
     const [logs, total] = await this.activityRepository.findAndCount({
-      where: { organizationId: orgId },
+      where: {
+        organizationId: orgId,
+        ...(actions ? { action: In(actions) } : {}),
+      },
       relations: ['actor'],
       order: { createdAt: 'DESC' },
       take: limit,
@@ -84,7 +109,7 @@ export class ActivityService {
 
     const result = { logs, total, page, limit };
 
-    if (page === 1) {
+    if (page === 1 && !category) {
       await this.cacheService.set(
         this.cacheService.keys.orgActivity(orgId),
         result,
