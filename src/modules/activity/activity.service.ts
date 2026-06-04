@@ -83,7 +83,7 @@ export class ActivityService {
     await this.orgsService.verifyMembership(orgId, requesterId);
 
     // Only cache unfiltered page 1
-    if (page === 1 && !category) {
+    if (page === 1 && !category && limit === 20) {
       const cacheKey = this.cacheService.keys.orgActivity(orgId);
       const cached = await this.cacheService.get<{
         logs: ActivityLog[];
@@ -109,7 +109,7 @@ export class ActivityService {
 
     const result = { logs, total, page, limit };
 
-    if (page === 1 && !category) {
+    if (page === 1 && !category && limit === 20) {
       await this.cacheService.set(
         this.cacheService.keys.orgActivity(orgId),
         result,

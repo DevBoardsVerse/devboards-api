@@ -46,8 +46,8 @@ async function bootstrap() {
         'http://localhost:3000',
         'http://localhost:80',
         'http://localhost',
-        process.env.FRONTEND_URL,  // production frontend
-        process.env.RENDER_URL,    // Render-deployed backend URL
+        ...(process.env.FRONTEND_URL?.split(',').map(o => o.trim()) ?? []),
+        process.env.RENDER_URL,
         'https://devboards-api.onrender.com',  // hardcoded Render URL
       ].filter(Boolean);           // remove undefined values
 
