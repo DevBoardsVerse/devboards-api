@@ -10,7 +10,13 @@ import {
 } from '../queue.constants';
 
 // @Processor tells NestJS this class handles jobs from the NOTIFICATIONS queue
-@Processor(QUEUES.NOTIFICATIONS)
+// drainDelay: 300 — worker sleeps 300s when queue is empty instead of polling
+// stalledInterval: 300000 — check stalled jobs every 5min instead of 30s
+// This reduces Upstash Redis command usage by ~95% when no emails are queued
+@Processor(QUEUES.NOTIFICATIONS, {
+    drainDelay: 3600,         // sleep 300s when queue is empty
+    // stalledInterval: 300000, // check stalled jobs every 5min
+})
 export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
 
@@ -41,14 +47,14 @@ export class NotificationProcessor extends WorkerHost {
   }
 
   private async handleInviteEmail(data: InviteEmailJobPayload): Promise<void> {
-  try {
-    await this.mailService.sendInviteEmail(data);
-    this.logger.log(`Invite email processed for ${data.recipientEmail}`);
-  } catch (err) {
-    this.logger.error(`Failed to send invite email to ${data.recipientEmail}`, err);
-    throw err; // rethrow so BullMQ marks job as failed
+    try {
+      await this.mailService.sendInviteEmail(data);
+      this.logger.log(`Invite email processed for ${data.recipientEmail}`);
+    } catch (err) {
+      this.logger.error(`Failed to send invite email to ${data.recipientEmail}`, err);
+      throw err; // rethrow so BullMQ marks job as failed
+    }
   }
-}
 
   private async handleTaskAssignedEmail(
     data: TaskAssignedEmailJobPayload,

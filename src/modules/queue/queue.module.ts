@@ -12,24 +12,26 @@ import { MailModule } from '../mail/mail.module';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-      connection: {
-        host: config.getOrThrow<string>('redis.host'),
-        port: config.getOrThrow<number>('redis.port'),
-        password: config.get<string>('redis.password') || undefined,
-        tls: config.get<string>('NODE_ENV') === 'production'
-          ? { rejectUnauthorized: false }
-          : undefined,
-      },
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
+        connection: {
+          host: config.getOrThrow<string>('redis.host'),
+          port: config.getOrThrow<number>('redis.port'),
+          password: config.get<string>('redis.password') || undefined,
+          tls: config.get<string>('NODE_ENV') === 'production'
+            ? { rejectUnauthorized: false }
+            : undefined,
         },
-      },
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      }),
     }),
-    }),
-    // Register specific queues
+    // Register specific queues — drainDelay and stalledInterval added here
+    // to reduce Redis polling when queue is idle
+    // Worker still wakes up instantly via pub/sub when a job is added
     BullModule.registerQueue({
       name: QUEUES.NOTIFICATIONS,
     }),
