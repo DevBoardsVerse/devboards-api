@@ -56,11 +56,9 @@ jobs:
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_SECRET: another_test_refresh_secret_long_enough_here
           JWT_REFRESH_EXPIRES_IN: 7d
-          MAIL_HOST: localhost
-          MAIL_PORT: 2525
-          MAIL_USER: test
-          MAIL_PASS: test
+          BREVO_API_KEY: test
           MAIL_FROM: test@test.com
+          GROQ_API_KEY: test
           R2_ACCOUNT_ID: test
           R2_ACCESS_KEY_ID: test
           R2_SECRET_ACCESS_KEY: test

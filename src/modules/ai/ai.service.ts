@@ -43,9 +43,7 @@ Respond ONLY with valid JSON. No markdown, no backticks, no extra text.`;
       }),
     });
 
-    console.log('[AI] groq status:', response.status);
     const data = await response.json();
-    console.log('[AI] groq raw:', JSON.stringify(data));
     const raw = data.choices?.[0]?.message?.content ?? '';
 
     if (!response.ok) {
