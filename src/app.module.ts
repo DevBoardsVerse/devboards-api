@@ -25,6 +25,7 @@ import storageConfig from './modules/storage/storage.config';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { GatewayModule } from './modules/gateway/gateway.module';
+import { AiModule } from './modules/ai/ai.module';
 
 
 @Module({
@@ -49,6 +50,7 @@ import { GatewayModule } from './modules/gateway/gateway.module';
     //StorageModule,
     //AttachmentsModule,
     GatewayModule,
+    AiModule,
      ThrottlerModule.forRoot([
       {
         name: 'global',
