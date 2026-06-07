@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { TaskStatus, TaskPriority } from '../entities/task.entity';
+import { Transform } from 'class-transformer';
 
 export class CreateTaskDto {
   @ApiProperty({ example: 'Implement JWT refresh rotation' })
@@ -41,7 +42,8 @@ export class CreateTaskDto {
   dueDate?: string;
 
   @ApiPropertyOptional({ description: 'UUID of the user to assign this task to' })
-  @IsUUID()
+  @IsUUID('all', { message: 'assigneeId must be a valid UUID or null' })
   @IsOptional()
-  assigneeId?: string;
+  @Transform(({ value }) => value === null || value === '' ? null : value)
+  assigneeId?: string | null;
 }

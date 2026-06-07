@@ -205,8 +205,8 @@ export class TasksService {
     }
     const oldStatus = task.status;  // capture BEFORE mutation
 
-    Object.assign(task, dto);
-    const updatedTask = await this.taskRepository.save(task);
+     await this.taskRepository.update(task.id, { ...dto });
+    const updatedTask = await this.findOne(orgId, projectId, taskId, userId);
 
     if (dto.status && dto.status !== oldStatus) {
       await this.activityService.log({
