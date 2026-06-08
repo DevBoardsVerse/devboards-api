@@ -30,6 +30,7 @@
 | Storage | MinIO (dev) / Cloudflare R2 (prod) |
 | Email | Brevo (transactional) |
 | Realtime | Socket.io WebSocket gateway |
+| AI | Groq API (Llama 3.1 8B) |
 | Docs | Swagger / OpenAPI |
 | Deploy | Render + Docker |
 | CI | GitHub Actions |
@@ -47,6 +48,7 @@
 - **Email notifications** — invite and task assignment emails via BullMQ queue + Brevo
 - **Redis caching** — cache-aside pattern on activity feed and member list with write-through invalidation
 - **Rate limiting** — 100/min global, 10/min auth, 5/min register
+- - **AI task suggestions** — `/ai/suggest-task` endpoint generates task descriptions and suggests priority using Groq API (Llama 3.1 8B Instant), free with no credit card required
 - **Security** — Helmet headers, CORS locked to allowed origins, bcrypt password hashing
 
 ## Architecture
@@ -80,6 +82,7 @@ PATCH  /organizations/:id/projects/:id/tasks/:id/assign
 POST   /organizations/:id/projects/:id/tasks/:id/attachments
 GET    /organizations/:id/activity
 GET    /health
+POST   /ai/suggest-task
 
 ## Local Setup
 
